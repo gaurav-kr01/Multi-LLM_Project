@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IIT Patna</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #f0f2f5; 
+            color: #333;
+        }
+
+        h2 { text-align: center; color: #444; margin-bottom: 30px; }
+
+        /* Search Bar Styling */
+        .search-container {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        input[type="text"] { 
+            padding: 15px; 
+            width: 60%; 
+            border: 2px solid #ddd; 
+            border-radius: 30px; 
+            font-size: 16px; 
+            outline: none;
+            transition: 0.3s;
+        }
+        input[type="text"]:focus { border-color: #10a37f; box-shadow: 0 0 8px rgba(16, 163, 127, 0.2); }
+        
+        .ask-btn { 
+            padding: 15px 30px; 
+            background: #10a37f; /* OpenAI Green */
+            color: white; 
+            border: none; 
+            border-radius: 30px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            margin-left: 10px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        .ask-btn:hover { background: #0e8c6d; transform: scale(1.05); }
+
+        /* THE GRID SYSTEM */
+        .box-container { 
+            display: flex; 
+            gap: 20px; 
+            align-items: stretch; 
+        }
+
+        .box { 
+            flex: 1; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            display: flex;
+            flex-direction: column; 
+            border-top: 5px solid #ccc;
+            transition: transform 0.2s;
+        }
+        .box:hover { transform: translateY(-5px); }
+
+        /* Model Specific Colors - RENAMED TO MATCH BRANDING */
+        .box-openai { border-color: #10a37f; } /* OpenAI Green */
+        .box-claude { border-color: #da7756; } /* Claude Orange */
+        .box-gemini { border-color: #4285F4; } /* Google Blue */
+
+        h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; }
+
+        /* ICONS */
+        .icon { font-size: 20px; }
+
+        /* SCROLLABLE TEXT AREA */
+        .response-text {
+            background: #fafafa;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            flex-grow: 1; 
+            max-height: 400px; 
+            overflow-y: auto; 
+            border: 1px solid #eee;
+            margin-bottom: 20px;
+        }
+
+        /* BUTTON STYLING */
+        .chat-link { text-decoration: none; display: block; }
+        .continue-btn { 
+            width: 100%; 
+            padding: 12px; 
+            border: none; 
+            border-radius: 8px; 
+            color: white; 
+            font-weight: bold; 
+            cursor: pointer; 
+            font-size: 14px;
+            transition: opacity 0.3s;
+        }
+        .continue-btn:hover { opacity: 0.9; }
+
+        /* Button Colors */
+        .btn-openai { background: #10a37f; }
+        .btn-claude { background: #da7756; }
+        .btn-gemini { background: #4285F4; }
+
+    </style>
+</head>
+<body>
+
+    <h2>IIT Patna - Multi LLM Project</h2>
+
+    <div class="search-container">
+        <form method="POST" action="/">
+            <input type="text" name="prompt" placeholder="Ask OpenAI, Claude, and Gemini..." required value="{{ prompt if prompt else '' }}">
+            <button type="submit" class="ask-btn">Ask Models</button>
+        </form>
+    </div>
+
+    {% if responses %}
+    <div class="box-container">
+         <div class="box box-openai">
+            <h3><span class="icon">🤖</span> OpenAI <span style="font-size:12px; color:#888; font-weight:normal">(GPT-4)</span></h3>
+            <div class="response-text">{{ responses.mixtral }}</div>
+            <a href="/chat/openai" class="chat-link">
+                <button class="continue-btn btn-openai">Chat with GPT-4 →</button>
+            </a>
+         </div>
+
+         <div class="box box-claude">
+            <h3><span class="icon">🧠</span> Claude <span style="font-size:12px; color:#888; font-weight:normal">(3.5 Sonnet)</span></h3>
+            <div class="response-text">{{ responses.llama }}</div>
+            <a href="/chat/claude" class="chat-link">
+                <button class="continue-btn btn-claude">Chat with Claude →</button>
+            </a>
+         </div>
+
+         <div class="box box-gemini">
+            <h3><span class="icon">✨</span> Gemini <span style="font-size:12px; color:#888; font-weight:normal">(2.5 Flash)</span></h3>
+            <div class="response-text">{{ responses.gemini }}</div>
+            <a href="/chat/gemini" class="chat-link">
+                <button class="continue-btn btn-gemini">Chat with Gemini →</button>
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</body>
+</html>
