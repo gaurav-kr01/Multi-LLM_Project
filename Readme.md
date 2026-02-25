@@ -32,10 +32,10 @@ The app needs API keys to work.
 
 Create a new file in the exact same folder as main.py and name it .env (make sure it's not .env.txt). Open it and paste your keys like this:
 
-Ini, TOML     i have already saved the API keys in .env files , so don't include to paste it 
+
 GOOGLE_API_KEY="your_google_key_here"
-OPENAI_API_KEY="your_groq_key_here"
-CLAUDE_API_KEY="your_groq_key_here"
+GROQ_API_KEY="your_groq_key_here"
+
 
 4. Start the server
 Run the following command to start the FastAPI server:
