@@ -1,4 +1,4 @@
-# Multi-LLM Dashboard - IIT Patna
+# Multi-LLM Dashboard
 
 This is the code for the web interface that compares responses from Google Gemini, OpenAI GPT-4, and Anthropic Claude side-by-side using asynchronous requests.
 
