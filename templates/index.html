@@ -3,156 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IIT Patna</title>
+    <title>Multi-LLM Comparison | IIT Patna</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            max-width: 1400px; 
-            margin: 0 auto; 
-            padding: 20px; 
-            background: #f0f2f5; 
-            color: #333;
-        }
-
-        h2 { text-align: center; color: #444; margin-bottom: 30px; }
-
-        /* Search Bar Styling */
-        .search-container {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-        input[type="text"] { 
-            padding: 15px; 
-            width: 60%; 
-            border: 2px solid #ddd; 
-            border-radius: 30px; 
-            font-size: 16px; 
-            outline: none;
-            transition: 0.3s;
-        }
-        input[type="text"]:focus { border-color: #10a37f; box-shadow: 0 0 8px rgba(16, 163, 127, 0.2); }
-        
-        .ask-btn { 
-            padding: 15px 30px; 
-            background: #10a37f; /* OpenAI Green */
-            color: white; 
-            border: none; 
-            border-radius: 30px; 
-            font-size: 16px; 
-            cursor: pointer; 
-            margin-left: 10px;
-            font-weight: bold;
-            transition: 0.3s;
-        }
-        .ask-btn:hover { background: #0e8c6d; transform: scale(1.05); }
-
-        /* THE GRID SYSTEM */
-        .box-container { 
-            display: flex; 
-            gap: 20px; 
-            align-items: stretch; 
-        }
-
-        .box { 
-            flex: 1; 
-            background: white; 
-            padding: 20px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
-            display: flex;
-            flex-direction: column; 
-            border-top: 5px solid #ccc;
-            transition: transform 0.2s;
-        }
-        .box:hover { transform: translateY(-5px); }
-
-        /* Model Specific Colors - RENAMED TO MATCH BRANDING */
-        .box-openai { border-color: #10a37f; } /* OpenAI Green */
-        .box-claude { border-color: #da7756; } /* Claude Orange */
-        .box-gemini { border-color: #4285F4; } /* Google Blue */
-
-        h3 { margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 18px; }
-
-        /* ICONS */
-        .icon { font-size: 20px; }
-
-        /* SCROLLABLE TEXT AREA */
-        .response-text {
-            background: #fafafa;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: inherit;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap; 
-            word-wrap: break-word;
-            flex-grow: 1; 
-            max-height: 400px; 
-            overflow-y: auto; 
-            border: 1px solid #eee;
-            margin-bottom: 20px;
-        }
-
-        /* BUTTON STYLING */
-        .chat-link { text-decoration: none; display: block; }
-        .continue-btn { 
-            width: 100%; 
-            padding: 12px; 
-            border: none; 
-            border-radius: 8px; 
-            color: white; 
-            font-weight: bold; 
-            cursor: pointer; 
-            font-size: 14px;
-            transition: opacity 0.3s;
-        }
-        .continue-btn:hover { opacity: 0.9; }
-
-        /* Button Colors */
-        .btn-openai { background: #10a37f; }
-        .btn-claude { background: #da7756; }
-        .btn-gemini { background: #4285F4; }
-
+        /* Why: Custom scrollbar styling that Tailwind can't do easily in one line */
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
 </head>
-<body>
+<body class="bg-[#0f172a] text-slate-200 min-h-screen flex flex-col font-sans">
 
-    <h2>Multi LLM Project</h2>
+    <header class="p-6 text-center border-b border-slate-800 bg-[#1e293b]/50 backdrop-blur-md sticky top-0 z-50">
+        <h1 class="text-3xl font-extrabold tracking-tight text-white">
+            EduPulse <span class="text-sky-500">Multi-LLM</span>
+        </h1>
+        <p class="text-slate-500 text-xs mt-1 uppercase tracking-widest">Model Comparison Dashboard</p>
+    </header>
 
-    <div class="search-container">
-        <form method="POST" action="/">
-            <input type="text" name="prompt" placeholder="Ask OpenAI, Claude, and Gemini..." required value="{{ prompt if prompt else '' }}">
-            <button type="submit" class="ask-btn">Ask Models</button>
-        </form>
-    </div>
+    <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
+        
+        <section class="max-w-3xl mx-auto w-full">
+            <div class="flex flex-col sm:flex-row gap-3 bg-slate-800/50 p-2 rounded-3xl border border-slate-700 focus-within:border-sky-500 transition-all shadow-2xl">
+                <input type="text" id="user-prompt" 
+                    placeholder="Ask Gemini, Llama, and Mixtral something..." 
+                    class="flex-1 bg-transparent px-6 py-3 outline-none text-white placeholder-slate-500 text-lg">
+                <button onclick="runComparison()" 
+                    class="bg-sky-600 hover:bg-sky-500 text-slate-900 font-bold px-8 py-3 rounded-2xl transition-all active:scale-95 shadow-lg shadow-sky-500/20">
+                    Compare
+                </button>
+            </div>
+        </section>
 
-    {% if responses %}
-    <div class="box-container">
-         <div class="box box-openai">
-            <h3><span class="icon">🤖</span> OpenAI <span style="font-size:12px; color:#888; font-weight:normal">(GPT-4)</span></h3>
-            <div class="response-text">{{ responses.mixtral }}</div>
-            <a href="/chat/openai" class="chat-link">
-                <button class="continue-btn btn-openai">Chat with GPT-4 →</button>
-            </a>
-         </div>
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
+            
+            <div class="flex flex-col bg-slate-800/40 rounded-3xl border border-slate-700 overflow-hidden shadow-xl hover:border-sky-500/50 transition-colors group">
+                <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                    <h3 class="font-bold text-sky-400 flex items-center gap-2">
+                        <span class="text-xl">✨</span> Gemini 1.5
+                    </h3>
+                    <span class="text-[10px] text-slate-500 font-mono">GOOGLE</span>
+                </div>
+                <div id="res-gemini" class="flex-1 p-5 text-sm leading-relaxed text-slate-300 custom-scrollbar overflow-y-auto min-h-[300px] md:min-h-[450px]">
+                    <span class="text-slate-600 italic text-xs">Awaiting prompt...</span>
+                </div>
+            </div>
 
-         <div class="box box-claude">
-            <h3><span class="icon">🧠</span> Claude <span style="font-size:12px; color:#888; font-weight:normal">(3.5 Sonnet)</span></h3>
-            <div class="response-text">{{ responses.llama }}</div>
-            <a href="/chat/claude" class="chat-link">
-                <button class="continue-btn btn-claude">Chat with Claude →</button>
-            </a>
-         </div>
+            <div class="flex flex-col bg-slate-800/40 rounded-3xl border border-slate-700 overflow-hidden shadow-xl hover:border-violet-500/50 transition-colors group">
+                <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                    <h3 class="font-bold text-violet-400 flex items-center gap-2">
+                        <span class="text-xl">🦙</span> Llama 3
+                    </h3>
+                    <span class="text-[10px] text-slate-500 font-mono">GROQ</span>
+                </div>
+                <div id="res-llama" class="flex-1 p-5 text-sm leading-relaxed text-slate-300 custom-scrollbar overflow-y-auto min-h-[300px] md:min-h-[450px]">
+                    <span class="text-slate-600 italic text-xs">Awaiting prompt...</span>
+                </div>
+            </div>
 
-         <div class="box box-gemini">
-            <h3><span class="icon">✨</span> Gemini <span style="font-size:12px; color:#888; font-weight:normal">(2.5 Flash)</span></h3>
-            <div class="response-text">{{ responses.gemini }}</div>
-            <a href="/chat/gemini" class="chat-link">
-                <button class="continue-btn btn-gemini">Chat with Gemini →</button>
-            </a>
-        </div>
-    </div>
-    {% endif %}
+            <div class="flex flex-col bg-slate-800/40 rounded-3xl border border-slate-700 overflow-hidden shadow-xl hover:border-amber-500/50 transition-colors group">
+                <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
+                    <h3 class="font-bold text-amber-400 flex items-center gap-2">
+                        <span class="text-xl">⚡</span> Mixtral
+                    </h3>
+                    <span class="text-[10px] text-slate-500 font-mono">GROQ</span>
+                </div>
+                <div id="res-mixtral" class="flex-1 p-5 text-sm leading-relaxed text-slate-300 custom-scrollbar overflow-y-auto min-h-[300px] md:min-h-[450px]">
+                    <span class="text-slate-600 italic text-xs">Awaiting prompt...</span>
+                </div>
+            </div>
 
+        </section>
+    </main>
+
+    <footer class="p-4 text-center text-slate-600 text-[10px] uppercase tracking-widest border-t border-slate-800">
+        Developed by Gaurav | Asynchronous Multi-Model Architecture
+    </footer>
+
+    <script>
+        async function runComparison() {
+            const promptInput = document.getElementById('user-prompt');
+            const prompt = promptInput.value.trim();
+            if(!prompt) return;
+
+            // 1. Set Loading State
+            const ids = ['res-gemini', 'res-llama', 'res-mixtral'];
+            ids.forEach(id => {
+                document.getElementById(id).innerHTML = `
+                    <div class="flex flex-col gap-2 animate-pulse">
+                        <div class="h-4 bg-slate-700 rounded w-3/4"></div>
+                        <div class="h-4 bg-slate-700 rounded w-full"></div>
+                        <div class="h-4 bg-slate-700 rounded w-5/6"></div>
+                    </div>
+                `;
+            });
+
+            try {
+                // 2. Parallel fetch from your FastAPI endpoints
+                const [groqRes, geminiRes] = await Promise.all([
+                    fetch('/test-groq'),
+                    fetch('/test-ai')
+                ]);
+
+                const groqData = await groqRes.json();
+                const geminiData = await geminiRes.json();
+
+                // 3. Update the UI with results
+                document.getElementById('res-gemini').innerText = geminiData.ai_response;
+                document.getElementById('res-llama').innerText = groqData.llama;
+                document.getElementById('res-mixtral').innerText = groqData.mixtral;
+
+            } catch (error) {
+                ids.forEach(id => {
+                    document.getElementById(id).innerText = "Error: Connection failed.";
+                });
+            }
+        }
+    </script>
 </body>
 </html>

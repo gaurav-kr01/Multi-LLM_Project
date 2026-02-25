@@ -1,186 +1,141 @@
-import asyncio
-import os
-import uuid
-import requests
-from dotenv import load_dotenv
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+import os 
+import uuid # generate unique id 
+from fastapi import FastAPI , Request #request is used to add browser info 
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
-from google import genai
-from google.genai import types 
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware   #the cookie maker
+from google import genai    #google sdk , that help to convert python standard od eto grammar that google demand
+from groq import AsyncGroq   #"The Async Version for speed"
+from google.genai import types  
+from dotenv import load_dotenv
 
+#loading secret key vault
 load_dotenv()
 
-app = FastAPI()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+client = genai.Client(api_key=GOOGLE_API_KEY)     #wake up google client 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+groq_client  = AsyncGroq(api_key = GROQ_API_KEY)
 
-app.add_middleware(
-    SessionMiddleware, 
-    secret_key="Session_Secret_Key", 
-    https_only=False, 
-    same_site="lax"
-)
+#initialization of server 
+app= FastAPI()
 
 templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
+#turn on the cookie maker 
+app.add_middleware( SessionMiddleware, 
+    secret_key= " My_Secret_Key",
+    https_only = False, # Syntax Fix: Changed "False" (string) to False (boolean)
+    same_site = "lax"
+    )
 
-GEMINI_KEY = os.getenv("GOOGLE_API_KEY")
-client = genai.Client(api_key=GEMINI_KEY)
-
-OPENAI_KEY = os.getenv("OPENAI_API_KEY")
-
-CLAUDE_KEY = os.getenv("CLAUDE_API_KEY")
-
-
+#The server memory (Locker Room )
 SERVER_SESSIONS = {}
 
-def get_user_session(request: Request):
-    user_id = request.session.get("user_id")
+#helper function that do work when user visit 
+def get_user_session(request:Request):
+    user_id= request.session.get("user_id") #looking inside request.session dictnory to search user_id
+
     if not user_id:
-        user_id = str(uuid.uuid4())
+        user_id = str(uuid.uuid4())   #creating user id 
+
         request.session["user_id"] = user_id
     if user_id not in SERVER_SESSIONS:
-        SERVER_SESSIONS[user_id] = {"history_gemini": [], "history_claude": [], "history_openai": []}
-    return user_id, SERVER_SESSIONS[user_id]
+        SERVER_SESSIONS[user_id]= {
+            "history_gemini":[],
+            "history_llama":[],
+            "history_mixtral":[]
+        }
 
-
-
-
-async def ask_gemini(history):
-    """
-    Provider: Google
-    Model: Gemini 1.5 Flash (Specific Version 001)
-    """
+    return user_id, SERVER_SESSIONS[user_id] #function return one or more than one value as tuple
+    
+async def ask_gemini(history):  #function is to take the normal history, translate it into Google's strict corporate grammar, send it to the internet, and return the answer
     try:
-        formatted_history = []
+        formatted_history = []  
         for msg in history:
-            role = "model" if msg["role"] == "assistant" else "user"
+            #Check the role: if it's "assistant", Google wants "model"
+            if msg["role"]=="assistant":
+                role = "model"
+            else:
+                role ="user"
+            #pack the text nto Google Part box
             part = types.Part(text=msg["content"])
+            # 3. Pack the role and the part into the "Content" box
             content = types.Content(role=role, parts=[part])
+            
+            # 4. Put that finished box into our "envelope" (the list)
             formatted_history.append(content)
 
-        response = await client.aio.models.generate_content(
-            model='gemini-2.5-flash', 
-            contents=formatted_history
+    # Send the finished list to Google and await the response
+    #await tells Python: "Pause this specific function right here, go do other work if you need to, and wake me back up ONLY when Google has the answer ready."
+        response = await client.aio.models.generate_content(   #generating answer asynchronously(aio),so that while server is waiting for Google to think of an answer, it can still handle other users. It doesn't "freeze" your computer.
+            model='gemini-2.5-flash',  #by using this model 
+            contents=formatted_history #thats the payload , means translated user;s question and previous chat 
         )
+        
+        # Return only the text answer
         return response.text
     except Exception as e:
+        # If the internet dies or the API key is wrong, this catches the crash!
         return f"Gemini Error: {str(e)}"
-    
-async def ask_openai(history):
-    """
-    Provider: OpenAI (GPT-4o)
-    """
+
+#llama engine 
+async def ask_llama(history):
     try:
-        headers = {
-            "Authorization": f"Bearer {OPENAI_KEY}", 
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "llama-3.1-8b-instant",
-            "messages": history
-        }
-        
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: requests.post(
-            "https://api.groq.com/openai/v1/chat/completions", 
-            json=data, 
-            headers=headers
-        ))
-        
-        if response.status_code != 200:
-            return f"OpenAI Error {response.status_code}: {response.text}"
-        return response.json()['choices'][0]['message']['content']
-    except Exception as e:
-        return f"OpenAI Connection Error: {e}"
+        #using Asyncgroq  client to send the message 
+        chat_completion = await groq_client.chat.completions.create(
+            messages = history, # Syntax Fix: Changed 'message' to 'messages'
+            model = "llama-3.3-70b-versatile"  #The llama3 brain 
+        )
 
-async def ask_claude(history):
-    """
-    NAME: Claude
-    ACTUAL: Groq (Llama 3.3 70B)
-    """
+        return chat_completion.choices[0].message.content  #. Groq sends back a very deep "folder," and we have to dig three levels deep to find the AI's actual words.
+    except Exception as e :
+        return f"LLama Error{str(e)}"
+
+#Mixtral engine
+async def ask_mixtral(history):
     try:
-       
-        headers = {
-            "Authorization": f"Bearer {CLAUDE_KEY}", 
-            "Content-Type": "application/json"
-        }
-        
-     
-        data = {
-            "model": "llama-3.3-70b-versatile", 
-            "messages": history
-        }
-        
-      
-        loop = asyncio.get_event_loop()
-        response = await loop.run_in_executor(None, lambda: requests.post(
-            "https://api.groq.com/openai/v1/chat/completions", 
-            json=data, 
-            headers=headers
-        ))
-        
-        if response.status_code != 200:
-            return f"Error {response.status_code}: {response.text}"
-            
-    
-        return response.json()['choices'][0]['message']['content']
+        #using Asyncgroq  client to send the message 
+        chat_completion = await groq_client.chat.completions.create(
+            messages = history, # Syntax Fix: Changed 'message' to 'messages'
+            model = "llama-3.1-8b-instant"  #The mixtral-8x7b-32768 
+        )
 
-    except Exception as e:
-        return f"Connection Error: {e}"
-
-
-
+        return chat_completion.choices[0].message.content  #. Groq sends back a very deep "folder," and we have to dig three levels deep to find the AI's actual words.
+    except Exception as e :
+        return f"Mixtral Error{str(e)}"
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    user_id, session_data = get_user_session(request)
-    SERVER_SESSIONS[user_id] = {"history_gemini": [], "history_claude": [], "history_openai": []}
-    return templates.TemplateResponse("index.html", {"request": request, "responses": None})
+def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
-@app.post("/", response_class=HTMLResponse)
-async def ask_all(request: Request, prompt: str = Form(...)):
-    user_id, session_data = get_user_session(request)
-    first_turn_user = [{"role": "user", "content": prompt}]
+@app.get("/test-ai")
+async def test_ai():
+    # 1. We create a fake "history" list to send to the function
+    # Remember: It must be a LIST of DICTIONARIES
+    test_history = [
+        {"role": "user", "content": "Hey Gemini! I am building a dashboard. If you can read this, tell me one short joke about programmers."}
+    ]
     
-   
-    results = await asyncio.gather(
-        ask_gemini(first_turn_user), 
-        ask_claude(first_turn_user),
-        ask_openai(first_turn_user)
-    )
+    # 2. Now we call your brand new function
+    # await - Don't send the response to the browser yet! Wait until Gemini finished typing and returns the text
+    answer = await ask_gemini(test_history)
     
-    session_data["history_gemini"] = [{"role": "user", "content": prompt}, {"role": "assistant", "content": results[0]}]
-    session_data["history_claude"] = [{"role": "user", "content": prompt}, {"role": "assistant", "content": results[1]}]
-    session_data["history_openai"] = [{"role": "user", "content": prompt}, {"role": "assistant", "content": results[2]}]
-    SERVER_SESSIONS[user_id] = session_data
+    # 3. Return the answer to the browser screen
+    return {
+        "status": "Success",
+        "ai_response": answer
+    }
 
-
-    responses = {"gemini": results[0], "llama": results[1], "mixtral": results[2]}
-    return templates.TemplateResponse("index.html", {"request": request, "prompt": prompt, "responses": responses})
-
-@app.get("/chat/{model_type}", response_class=HTMLResponse)
-async def chat_view(request: Request, model_type: str):
-    user_id, session_data = get_user_session(request)
-    history = session_data.get(f"history_{model_type}", [])
-    return templates.TemplateResponse("chat.html", {"request": request, "model_type": model_type, "chat_history": history})
-
-@app.post("/chat/{model_type}")
-async def chat_continue(request: Request, model_type: str, prompt: str = Form(...)):
-    user_id, session_data = get_user_session(request)
-    history = session_data.get(f"history_{model_type}", [])
+@app.get("/test-groq")
+async def test_groq():
+    test_msg = [{"role": "user", "content": "Explain what a black hole is to a 5-year-old in one sentence."}]
+    llama_ans = await ask_llama(test_msg)
+    mixtral_ans = await ask_mixtral(test_msg)
     
-    history.append({"role": "user", "content": prompt})
-    
-    if model_type == "gemini":
-        bot_response = await ask_gemini(history)
-    elif model_type == "claude":
-        bot_response = await ask_claude(history)
-    else:
-        bot_response = await ask_openai(history)
-    
-    history.append({"role": "assistant", "content": bot_response})
-    session_data[f"history_{model_type}"] = history
-    SERVER_SESSIONS[user_id] = session_data
-    
-    return RedirectResponse(url=f"/chat/{model_type}", status_code=303)
+    return {
+        "llama": llama_ans,
+        "mixtral": mixtral_ans
+    }
