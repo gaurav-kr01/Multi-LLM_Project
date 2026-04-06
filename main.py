@@ -1,4 +1,5 @@
 import os 
+import asyncio
 import uuid # generate unique id 
 from fastapi import FastAPI , Request #request is used to add browser info 
 from fastapi.responses import HTMLResponse
@@ -9,6 +10,7 @@ from google import genai    #google sdk , that help to convert python standard o
 from groq import AsyncGroq   #"The Async Version for speed"
 from google.genai import types  
 from dotenv import load_dotenv
+
 
 #loading secret key vault
 load_dotenv()
@@ -70,7 +72,7 @@ async def ask_gemini(history):  #function is to take the normal history, transla
 
     # Send the finished list to Google and await the response
     #await tells Python: "Pause this specific function right here, go do other work if you need to, and wake me back up ONLY when Google has the answer ready."
-        response = await client.aio.models.generate_content(   #generating answer asynchronously(aio),so that while server is waiting for Google to think of an answer, it can still handle other users. It doesn't "freeze" your computer.
+        response = await client.aio.models.generate_content(   #generating answer asynchronously(aio),so that while server is waiting for Google to think of an answer, it can still handle other users. It doesn't "freeze" computer.
             model='gemini-2.5-flash',  #by using this model 
             contents=formatted_history #thats the payload , means translated user;s question and previous chat 
         )
@@ -109,7 +111,22 @@ async def ask_mixtral(history):
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    # Fix: Get session so index.html can show previous answers on 'Back'
+    user_id, session = get_user_session(request)
+    return templates.TemplateResponse("index.html", {
+        "request": request, 
+        "session": session
+    })
+
+@app.get("/chat/{model_name}", response_class=HTMLResponse)
+async def chat_page(request: Request, model_name: str):
+    # Fix: Get session so chat.html can show the full conversation history
+    user_id, session = get_user_session(request)
+    return templates.TemplateResponse("chat.html", {
+        "request": request, 
+        "model_name": model_name,
+        "session": session
+    })
 
 @app.get("/test-ai")
 async def test_ai():
@@ -139,3 +156,64 @@ async def test_groq():
         "llama": llama_ans,
         "mixtral": mixtral_ans
     }
+
+# 1. NEW ROUTE: This handles the real user input from your dashboard
+@app.get("/compare")
+async def compare_models(request: Request, prompt: str):
+    # 2. Get the user's personal session (The "Locker Room")
+    user_id, session = get_user_session(request)
+    
+    # 3. Save the new question into the history for all 3 models
+    # This allows the AI to "remember" the conversation
+    session["history_gemini"].append({"role": "user", "content": prompt})
+    session["history_llama"].append({"role": "user", "content": prompt})
+    session["history_mixtral"].append({"role": "user", "content": prompt})
+    
+    # 4. ASYNCIO GATHER: This is the "Magic" for your resume.
+    # It fires all three API calls at the exact same time instead of one-by-one.
+    try:
+        gemini_ans, llama_ans, mixtral_ans = await asyncio.gather(
+            ask_gemini(session["history_gemini"]),
+            ask_llama(session["history_llama"]),
+            ask_mixtral(session["history_mixtral"])
+        )
+        
+        # 5. Save the AI's answers back into the session memory
+        session["history_gemini"].append({"role": "assistant", "content": gemini_ans})
+        session["history_llama"].append({"role": "assistant", "content": llama_ans})
+        session["history_mixtral"].append({"role": "assistant", "content": mixtral_ans})
+        
+        return {
+            "gemini": gemini_ans,
+            "llama": llama_ans,
+            "mixtral": mixtral_ans
+        }
+    except Exception as e:
+        return {"error": str(e)}
+    
+
+@app.get("/chat/{model_name}", response_class=HTMLResponse)
+async def chat_page(request: Request, model_name: str):
+    # This renders your new page and tells the HTML which model it is using
+    return templates.TemplateResponse("chat.html", {
+        "request": request, 
+        "model_name": model_name
+    })
+# Add this to main.py
+@app.get("/chat/{model_name}/api")
+async def chat_api(model_name: str, prompt: str, request: Request):
+    user_id, session = get_user_session(request)
+    history_key = f"history_{model_name}"
+    
+    # Preserve history for multi-turn chat
+    session[history_key].append({"role": "user", "content": prompt})
+    
+    if model_name == "gemini":
+        answer = await ask_gemini(session[history_key])
+    elif model_name == "llama":
+        answer = await ask_llama(session[history_key])
+    else:
+        answer = await ask_mixtral(session[history_key])
+        
+    session[history_key].append({"role": "assistant", "content": answer})
+    return {"answer": answer}

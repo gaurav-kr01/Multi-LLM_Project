@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-LLM Comparison | IIT Patna</title>
+    <title>Multi-LLM Comparison</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Why: Custom scrollbar styling that Tailwind can't do easily in one line */
         .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
     </style>
@@ -21,10 +20,10 @@
     </header>
 
     <main class="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full flex flex-col gap-8">
-        
         <section class="max-w-3xl mx-auto w-full">
             <div class="flex flex-col sm:flex-row gap-3 bg-slate-800/50 p-2 rounded-3xl border border-slate-700 focus-within:border-sky-500 transition-all shadow-2xl">
                 <input type="text" id="user-prompt" 
+                    onkeydown="if(event.key === 'Enter') runComparison()"
                     placeholder="Ask Gemini, Llama, and Mixtral something..." 
                     class="flex-1 bg-transparent px-6 py-3 outline-none text-white placeholder-slate-500 text-lg">
                 <button onclick="runComparison()" 
@@ -35,87 +34,79 @@
         </section>
 
         <section class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
-            
             <div class="flex flex-col bg-slate-800/40 rounded-3xl border border-slate-700 overflow-hidden shadow-xl hover:border-sky-500/50 transition-colors group">
                 <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
-                    <h3 class="font-bold text-sky-400 flex items-center gap-2">
-                        <span class="text-xl">✨</span> Gemini 1.5
-                    </h3>
+                    <h3 class="font-bold text-sky-400 flex items-center gap-2">✨ Gemini 1.5</h3>
                     <span class="text-[10px] text-slate-500 font-mono">GOOGLE</span>
                 </div>
                 <div id="res-gemini" class="flex-1 p-5 text-sm leading-relaxed text-slate-300 custom-scrollbar overflow-y-auto min-h-[300px] md:min-h-[450px]">
                     <span class="text-slate-600 italic text-xs">Awaiting prompt...</span>
                 </div>
+                <div class="p-4 border-t border-slate-700 bg-slate-800/20">
+                    <a href="/chat/gemini" class="block w-full text-center bg-sky-600 hover:bg-sky-500 text-slate-900 font-bold py-2 rounded-xl text-xs transition-all">Continue with Gemini →</a>
+                </div>
             </div>
 
             <div class="flex flex-col bg-slate-800/40 rounded-3xl border border-slate-700 overflow-hidden shadow-xl hover:border-violet-500/50 transition-colors group">
                 <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
-                    <h3 class="font-bold text-violet-400 flex items-center gap-2">
-                        <span class="text-xl">🦙</span> Llama 3
-                    </h3>
+                    <h3 class="font-bold text-violet-400 flex items-center gap-2">🦙 Llama 3</h3>
                     <span class="text-[10px] text-slate-500 font-mono">GROQ</span>
                 </div>
                 <div id="res-llama" class="flex-1 p-5 text-sm leading-relaxed text-slate-300 custom-scrollbar overflow-y-auto min-h-[300px] md:min-h-[450px]">
                     <span class="text-slate-600 italic text-xs">Awaiting prompt...</span>
                 </div>
+                <div class="p-4 border-t border-slate-700 bg-slate-800/20">
+                    <a href="/chat/llama" class="block w-full text-center bg-violet-600 hover:bg-violet-500 text-white font-bold py-2 rounded-xl text-xs transition-all">Continue with Llama →</a>
+                </div>
             </div>
 
             <div class="flex flex-col bg-slate-800/40 rounded-3xl border border-slate-700 overflow-hidden shadow-xl hover:border-amber-500/50 transition-colors group">
                 <div class="p-4 bg-slate-800/80 border-b border-slate-700 flex items-center justify-between">
-                    <h3 class="font-bold text-amber-400 flex items-center gap-2">
-                        <span class="text-xl">⚡</span> Mixtral
-                    </h3>
+                    <h3 class="font-bold text-amber-400 flex items-center gap-2">⚡ Mixtral</h3>
                     <span class="text-[10px] text-slate-500 font-mono">GROQ</span>
                 </div>
                 <div id="res-mixtral" class="flex-1 p-5 text-sm leading-relaxed text-slate-300 custom-scrollbar overflow-y-auto min-h-[300px] md:min-h-[450px]">
                     <span class="text-slate-600 italic text-xs">Awaiting prompt...</span>
                 </div>
+                <div class="p-4 border-t border-slate-700 bg-slate-800/20">
+                    <a href="/chat/mixtral" class="block w-full text-center bg-amber-600 hover:bg-amber-500 text-slate-900 font-bold py-2 rounded-xl text-xs transition-all">Continue with Mixtral →</a>
+                </div>
             </div>
-
         </section>
     </main>
 
-    <footer class="p-4 text-center text-slate-600 text-[10px] uppercase tracking-widest border-t border-slate-800">
-        Developed by Gaurav | Asynchronous Multi-Model Architecture
-    </footer>
-
     <script>
+        // Memory Bridge: Restore UI state from server-side session
+        window.onload = function() {
+            const sessionData = {{ session | tojson | safe if session else 'null' }};
+            if (sessionData) {
+                ['gemini', 'llama', 'mixtral'].forEach(m => {
+                    const history = sessionData[`history_${m}`];
+                    if (history && history.length > 0) {
+                        const lastMsg = history.filter(msg => msg.role === 'assistant').pop();
+                        if(lastMsg) document.getElementById(`res-${m}`).innerText = lastMsg.content;
+                    }
+                });
+            }
+        };
+
         async function runComparison() {
             const promptInput = document.getElementById('user-prompt');
             const prompt = promptInput.value.trim();
             if(!prompt) return;
 
-            // 1. Set Loading State
-            const ids = ['res-gemini', 'res-llama', 'res-mixtral'];
-            ids.forEach(id => {
-                document.getElementById(id).innerHTML = `
-                    <div class="flex flex-col gap-2 animate-pulse">
-                        <div class="h-4 bg-slate-700 rounded w-3/4"></div>
-                        <div class="h-4 bg-slate-700 rounded w-full"></div>
-                        <div class="h-4 bg-slate-700 rounded w-5/6"></div>
-                    </div>
-                `;
+            ['res-gemini', 'res-llama', 'res-mixtral'].forEach(id => {
+                document.getElementById(id).innerText = "Thinking...";
             });
 
             try {
-                // 2. Parallel fetch from your FastAPI endpoints
-                const [groqRes, geminiRes] = await Promise.all([
-                    fetch('/test-groq'),
-                    fetch('/test-ai')
-                ]);
-
-                const groqData = await groqRes.json();
-                const geminiData = await geminiRes.json();
-
-                // 3. Update the UI with results
-                document.getElementById('res-gemini').innerText = geminiData.ai_response;
-                document.getElementById('res-llama').innerText = groqData.llama;
-                document.getElementById('res-mixtral').innerText = groqData.mixtral;
-
+                const response = await fetch(`/compare?prompt=${encodeURIComponent(prompt)}`);
+                const data = await response.json();
+                document.getElementById('res-gemini').innerText = data.gemini;
+                document.getElementById('res-llama').innerText = data.llama;
+                document.getElementById('res-mixtral').innerText = data.mixtral;
             } catch (error) {
-                ids.forEach(id => {
-                    document.getElementById(id).innerText = "Error: Connection failed.";
-                });
+                alert("Server connection failed!");
             }
         }
     </script>

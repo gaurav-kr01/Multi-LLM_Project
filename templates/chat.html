@@ -3,175 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat with {{ model_type|capitalize }}</title>
-    <style>
-       
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #f0f2f5; 
-            margin: 0; 
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .theme-gemini { --main-color: #4285F4; --bg-color: #e8f0fe; }
-        .theme-claude { --main-color: #FF6F00; --bg-color: #fff3e0; }
-        .theme-openai { --main-color: #10a37f; --bg-color: #f3e5f5; }
-
-        
-        .chat-card {
-            background: white;
-            width: 100%;
-            max-width: 900px;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* Keeps headers inside rounded corners */
-            border-top: 6px solid var(--main-color);
-        }
-
-        
-        .chat-header {
-            background: var(--main-color);
-            color: white;
-            padding: 15px 25px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 18px;
-            font-weight: bold;
-        }
-        .back-btn {
-            color: white;
-            text-decoration: none;
-            font-size: 14px;
-            background: rgba(255,255,255,0.2);
-            padding: 8px 15px;
-            border-radius: 20px;
-            transition: 0.3s;
-        }
-        .back-btn:hover { background: rgba(255,255,255,0.4); }
-
-        
-        .messages-area {
-            flex: 1;
-            padding: 25px;
-            overflow-y: auto;
-            background: #fafafa;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        
-        .msg {
-            max-width: 80%;
-            padding: 15px 20px;
-            border-radius: 18px;
-            line-height: 1.5;
-            font-size: 15px;
-            position: relative;
-            word-wrap: break-word;
-        }
-
-        
-        .user {
-            align-self: flex-end;
-            background: var(--main-color);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-
-       
-        .assistant {
-            align-self: flex-start;
-            background: white;
-            color: #333;
-            border: 1px solid #ddd;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        
-        .label {
-            font-size: 11px;
-            margin-bottom: 5px;
-            opacity: 0.8;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        
-        .input-area {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #eee;
-            display: flex;
-            gap: 10px;
-        }
-        input[type="text"] {
-            flex: 1;
-            padding: 15px;
-            border: 2px solid #ddd;
-            border-radius: 30px;
-            outline: none;
-            font-size: 16px;
-            transition: 0.3s;
-        }
-        input[type="text"]:focus {
-            border-color: var(--main-color);
-        }
-        .send-btn {
-            background: var(--main-color);
-            color: white;
-            border: none;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: 0.2s;
-        }
-        .send-btn:hover { transform: scale(1.1); }
-
-    </style>
+    <title>Chat with {{ model_name | capitalize }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-[#0f172a] text-white h-screen flex flex-col font-sans">
+    <header class="p-6 border-b border-slate-800 bg-[#1e293b]/50 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold">Conversation: <span class="text-sky-400">{{ model_name | capitalize }}</span></h1>
+            <a href="/" class="text-xs text-slate-500 hover:text-sky-500">← Back to Comparison</a>
+        </div>
+    </header>
 
-    <div class="chat-card theme-{{ 'openai' if model_type == 'openai' else ('claude' if model_type == 'claude' else 'gemini') }}">
-        
-        <div class="chat-header">
-            <span>Continue with {{ model_type|capitalize }}</span>
-            <a href="/" class="back-btn">← New Comparison</a>
+    <div id="chat-box" class="flex-1 p-6 overflow-y-auto space-y-4 max-w-5xl mx-auto w-full custom-scrollbar">
         </div>
 
-        <div class="messages-area" id="scroller">
-            {% for msg in chat_history %}
-                <div class="msg {{ 'user' if msg.role == 'user' else 'assistant' }}">
-                    <div class="label">{{ 'You' if msg.role == 'user' else model_type }}</div>
-                    {{ msg.content }}
-                </div>
-            {% endfor %}
+    <div class="p-6 bg-[#1e293b] border-t border-slate-800">
+        <div class="max-w-5xl mx-auto flex gap-4">
+            <input id="user-input" type="text" 
+                onkeydown="if(event.key === 'Enter') sendToModel()"
+                class="flex-1 bg-slate-900 p-4 rounded-xl outline-none border border-slate-700 focus:border-sky-500 transition-all" 
+                placeholder="Continue the conversation...">
+            <button onclick="sendToModel()" class="bg-sky-600 hover:bg-sky-500 px-8 py-4 rounded-xl font-bold transition-all">Send</button>
         </div>
-
-        <form class="input-area" method="POST" action="/chat/{{ model_type }}">
-            <input type="text" name="prompt" placeholder="Type your message to {{ model_type|capitalize }}..." required autofocus autocomplete="off">
-            <button type="submit" class="send-btn">➤</button>
-        </form>
-
     </div>
 
     <script>
-        const chatBox = document.getElementById('scroller');
-        chatBox.scrollTop = chatBox.scrollHeight;
-    </script>
+        const model = "{{ model_name }}";
+        const chatBox = document.getElementById('chat-box');
 
+        // Restore entire history from server session on page load
+        window.onload = function() {
+            const sessionData = {{ session | tojson | safe if session else 'null' }};
+            const history = sessionData ? sessionData[`history_${model}`] : null;
+            
+            if (history && history.length > 0) {
+                history.forEach(msg => appendMessage(msg.role, msg.content));
+            } else {
+                appendMessage('assistant', `Hello! I am your ${model} assistant. How can I help today?`);
+            }
+        };
+
+        function appendMessage(role, content) {
+            const isUser = role === 'user';
+            const alignment = isUser ? 'justify-end' : 'justify-start';
+            const color = isUser ? 'bg-sky-600' : 'bg-slate-800 border border-slate-700';
+            chatBox.innerHTML += `
+                <div class="flex ${alignment}">
+                    <div class="${color} p-4 rounded-2xl max-w-[80%] shadow-lg">${content}</div>
+                </div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        async function sendToModel() {
+            const input = document.getElementById('user-input');
+            const prompt = input.value.trim();
+            if(!prompt) return;
+
+            appendMessage('user', prompt);
+            input.value = '';
+
+            try {
+                const res = await fetch(`/chat/${model}/api?prompt=${encodeURIComponent(prompt)}`);
+                const data = await res.json();
+                appendMessage('assistant', data.answer);
+            } catch(e) { console.error("Error:", e); }
+        }
+    </script>
 </body>
 </html>
