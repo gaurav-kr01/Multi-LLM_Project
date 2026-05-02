@@ -1,6 +1,6 @@
 # Multi-LLM Dashboard
 
-This is the code for the web interface that compares responses from Google Gemini, OpenAI GPT-4, and Anthropic Claude side-by-side using asynchronous requests.
+This is the code for the web interface that compares responses from Google Gemini, llama , and mixtral side-by-side using asynchronous requests.
 
 ## How to run the project
 
